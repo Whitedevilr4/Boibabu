@@ -134,6 +134,23 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
 
+    // Clean up corrupted reviews before sending response
+    if (book.reviews && Array.isArray(book.reviews)) {
+      book.reviews = book.reviews.filter(review => 
+        review && 
+        typeof review === 'object' && 
+        review.user && 
+        typeof review.rating === 'number'
+      );
+    } else {
+      book.reviews = [];
+    }
+
+    // Ensure rating object is properly formatted
+    if (!book.rating || typeof book.rating !== 'object') {
+      book.rating = { average: 0, count: 0 };
+    }
+
     res.json(book);
   } catch (error) {
     console.error(error);
@@ -162,9 +179,17 @@ router.post('/:id/reviews', auth, async (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
 
-    // Initialize reviews array if it doesn't exist
-    if (!book.reviews) {
+    // Initialize reviews array if it doesn't exist or clean up corrupted data
+    if (!book.reviews || !Array.isArray(book.reviews)) {
       book.reviews = [];
+    } else {
+      // Clean up any corrupted review entries (empty strings, null, etc.)
+      book.reviews = book.reviews.filter(review => 
+        review && 
+        typeof review === 'object' && 
+        review.user && 
+        typeof review.rating === 'number'
+      );
     }
 
     // Initialize rating object if it doesn't exist or is corrupted
@@ -240,6 +265,18 @@ router.put('/:id/reviews', auth, async (req, res) => {
       return res.status(404).json({ message: 'Book not found' });
     }
 
+    // Clean up corrupted reviews data
+    if (!book.reviews || !Array.isArray(book.reviews)) {
+      book.reviews = [];
+    } else {
+      book.reviews = book.reviews.filter(review => 
+        review && 
+        typeof review === 'object' && 
+        review.user && 
+        typeof review.rating === 'number'
+      );
+    }
+
     // Find user's existing review
     const reviewIndex = book.reviews.findIndex(
       review => review.user.toString() === req.user._id.toString()
@@ -282,6 +319,18 @@ router.delete('/:id/reviews', auth, async (req, res) => {
 
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
+    }
+
+    // Clean up corrupted reviews data
+    if (!book.reviews || !Array.isArray(book.reviews)) {
+      book.reviews = [];
+    } else {
+      book.reviews = book.reviews.filter(review => 
+        review && 
+        typeof review === 'object' && 
+        review.user && 
+        typeof review.rating === 'number'
+      );
     }
 
     // Find and remove user's review
