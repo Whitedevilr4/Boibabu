@@ -41,10 +41,49 @@ router.get('/', async (req, res) => {
     const categories = await Category.find({ isActive: true })
       .sort({ sortOrder: 1, name: 1 });
     console.log(`Found ${categories.length} categories:`, categories.map(c => c.name));
+    
+    // If no categories found in database, return static categories
+    if (categories.length === 0) {
+      console.log('No categories in database, returning static categories');
+      const staticCategories = [
+        'Fiction', 'Non-Fiction', 'Mystery', 'Romance', 'Sci-Fi', 'Fantasy',
+        'Biography', 'History', 'Self-Help', 'Technology', 'Business', 'Health',
+        'Travel', 'Cooking', 'Art', 'Education', 'Children', 'Poetry', 'Drama',
+        'Science', 'Mythology', 'Other'
+      ];
+      
+      const formattedCategories = staticCategories.map((name, index) => ({
+        _id: name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+        name: name,
+        slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        isActive: true,
+        sortOrder: index
+      }));
+      
+      return res.json(formattedCategories);
+    }
+    
     res.json(categories);
   } catch (error) {
     console.error('Error in categories endpoint:', error);
-    res.status(500).json({ message: 'Server error' });
+    
+    // Fallback to static categories on error
+    const staticCategories = [
+      'Fiction', 'Non-Fiction', 'Mystery', 'Romance', 'Sci-Fi', 'Fantasy',
+      'Biography', 'History', 'Self-Help', 'Technology', 'Business', 'Health',
+      'Travel', 'Cooking', 'Art', 'Education', 'Children', 'Poetry', 'Drama',
+      'Science', 'Mythology', 'Other'
+    ];
+    
+    const formattedCategories = staticCategories.map((name, index) => ({
+      _id: name.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      name: name,
+      slug: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+      isActive: true,
+      sortOrder: index
+    }));
+    
+    res.json(formattedCategories);
   }
 });
 
