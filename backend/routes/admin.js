@@ -360,13 +360,16 @@ router.post('/books', adminAuth, uploadBook.array('images', 5), async (req, res)
       isbn,
       description,
       price,
+      originalPrice,
       category,
       language,
       publisher,
       publishedDate,
       pages,
       stock,
-      featured
+      featured,
+      bestseller,
+      newArrival
     } = req.body;
 
     // Get Cloudinary URLs from uploaded files
@@ -378,6 +381,7 @@ router.post('/books', adminAuth, uploadBook.array('images', 5), async (req, res)
       isbn,
       description,
       price: parseFloat(price),
+      originalPrice: originalPrice ? parseFloat(originalPrice) : undefined,
       category,
       language,
       publisher,
@@ -386,6 +390,8 @@ router.post('/books', adminAuth, uploadBook.array('images', 5), async (req, res)
       stock: parseInt(stock) || 0,
       images: imageUrls, // Now contains Cloudinary URLs
       featured: featured === 'true',
+      bestseller: bestseller === 'true',
+      newArrival: newArrival === 'true',
       createdBy: req.user.id
     });
 
@@ -425,6 +431,7 @@ router.put('/books/:id', adminAuth, uploadBook.array('images', 5), async (req, r
   try {
     console.log('Updating book with ID:', req.params.id);
     console.log('Update data received:', req.body);
+    console.log('Original price in request:', req.body.originalPrice, typeof req.body.originalPrice);
     
     const book = await Book.findById(req.params.id);
     if (!book) {
@@ -433,6 +440,22 @@ router.put('/books/:id', adminAuth, uploadBook.array('images', 5), async (req, r
     }
 
     const updateData = { ...req.body };
+    
+    // Remove fields that shouldn't be updated directly to prevent cast errors
+    delete updateData.reviews;
+    delete updateData.rating;
+    delete updateData.createdBy;
+    delete updateData.createdAt;
+    delete updateData.updatedAt;
+    delete updateData._id;
+    delete updateData.__v;
+    
+    // Also remove any fields that come as "[object Object]" strings
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === '[object Object]' || updateData[key] === 'undefined') {
+        delete updateData[key];
+      }
+    });
     
     // Handle new image uploads
     if (req.files && req.files.length > 0) {
@@ -466,6 +489,21 @@ router.put('/books/:id', adminAuth, uploadBook.array('images', 5), async (req, r
       }
     }
 
+    if (updateData.originalPrice !== undefined) {
+      console.log('Processing originalPrice:', updateData.originalPrice, typeof updateData.originalPrice);
+      if (updateData.originalPrice === '' || updateData.originalPrice === null) {
+        // If originalPrice is empty, remove it from the update (keep existing value)
+        console.log('Removing empty originalPrice from update');
+        delete updateData.originalPrice;
+      } else {
+        updateData.originalPrice = Number(updateData.originalPrice);
+        if (isNaN(updateData.originalPrice)) {
+          return res.status(400).json({ message: 'Invalid original price value' });
+        }
+        console.log('Converted originalPrice to:', updateData.originalPrice);
+      }
+    }
+
     if (updateData.stock !== undefined && updateData.stock !== '') {
       updateData.stock = Number(updateData.stock);
       if (isNaN(updateData.stock)) {
@@ -483,6 +521,14 @@ router.put('/books/:id', adminAuth, uploadBook.array('images', 5), async (req, r
     // Convert boolean fields
     if (updateData.featured !== undefined) {
       updateData.featured = updateData.featured === 'true' || updateData.featured === true;
+    }
+
+    if (updateData.bestseller !== undefined) {
+      updateData.bestseller = updateData.bestseller === 'true' || updateData.bestseller === true;
+    }
+
+    if (updateData.newArrival !== undefined) {
+      updateData.newArrival = updateData.newArrival === 'true' || updateData.newArrival === true;
     }
 
     // Convert date fields
