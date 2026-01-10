@@ -6,8 +6,40 @@ const Coupon = require('../models/Coupon');
 const { auth } = require('../middleware/auth');
 const { createNotification } = require('./notifications');
 const { sendOrderConfirmationEmail, sendSellerOrderNotificationEmail } = require('../utils/emailService');
+const { calculateShippingCharges, validatePincode, getShippingInfo } = require('../utils/shippingUtils');
 
 const router = express.Router();
+
+// Calculate shipping charges endpoint
+router.post('/calculate-shipping', auth, async (req, res) => {
+  try {
+    const { zipCode, subtotal = 0 } = req.body;
+
+    if (!zipCode) {
+      return res.status(400).json({ message: 'ZIP code is required' });
+    }
+
+    const validation = validatePincode(zipCode);
+    if (!validation.isValid) {
+      return res.status(400).json({ message: validation.message });
+    }
+
+    const shippingCharges = calculateShippingCharges(zipCode, subtotal);
+    const shippingInfo = getShippingInfo(zipCode, subtotal);
+
+    res.json({
+      zipCode,
+      subtotal,
+      shippingCharges,
+      shippingInfo,
+      freeShippingThreshold: 2000,
+      amountForFreeShipping: Math.max(0, 2000 - subtotal)
+    });
+  } catch (error) {
+    console.error('Calculate shipping error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
 
 // Simple test route for email (no auth required)
 router.get('/test-email-simple', async (req, res) => {
@@ -198,6 +230,16 @@ router.post('/', auth, async (req, res) => {
   try {
     const { items, shippingAddress, paymentMethod, couponDiscount = 0, appliedCoupon } = req.body;
 
+    // Validate shipping address PIN code
+    if (!shippingAddress.zipCode) {
+      return res.status(400).json({ message: 'ZIP code is required for shipping calculation' });
+    }
+
+    const pincodeValidation = validatePincode(shippingAddress.zipCode);
+    if (!pincodeValidation.isValid) {
+      return res.status(400).json({ message: pincodeValidation.message });
+    }
+
     // Validate items and calculate totals
     let subtotal = 0;
     const orderItems = [];
@@ -228,8 +270,12 @@ router.post('/', auth, async (req, res) => {
       await book.save();
     }
 
-    const shippingCost = (subtotal - couponDiscount) >= 2000 ? 0 : 70; // Free shipping over ₹2000 after discount
+    // Calculate shipping charges based on PIN code and discounted subtotal
+    const discountedSubtotal = subtotal - couponDiscount;
+    const shippingCost = calculateShippingCharges(shippingAddress.zipCode, discountedSubtotal);
     const total = subtotal - couponDiscount + shippingCost;
+
+    console.log(`Order shipping calculation: PIN ${shippingAddress.zipCode}, Subtotal: ₹${subtotal}, Discount: ₹${couponDiscount}, Discounted Subtotal: ₹${discountedSubtotal}, Shipping: ₹${shippingCost}, Total: ₹${total}`);
 
     // Handle coupon usage
     let couponData = null;
