@@ -203,4 +203,19 @@ router.get('/payment/:paymentId', auth, async (req, res) => {
   }
 });
 
+// Diagnostic endpoint to check Razorpay configuration (remove after fixing)
+router.get('/config-check', async (req, res) => {
+  try {
+    res.json({
+      environment: process.env.NODE_ENV,
+      keyId: process.env.RAZORPAY_KEY_ID,
+      keyType: process.env.RAZORPAY_KEY_ID?.startsWith('rzp_live_') ? 'LIVE' : 'TEST',
+      hasSecret: !!process.env.RAZORPAY_KEY_SECRET,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;
