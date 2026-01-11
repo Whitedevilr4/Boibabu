@@ -413,6 +413,11 @@ orderSchema.pre('save', function(next) {
 // Method to calculate seller payments when order is delivered
 orderSchema.methods.calculateSellerPayments = async function() {
   try {
+    // Get global commission rate from website settings
+    const WebsiteSettings = require('./WebsiteSettings');
+    const settings = await WebsiteSettings.getSettings();
+    const globalCommissionRate = settings.features?.commissionRate || 2.5;
+
     // Populate items with book and seller info
     await this.populate({
       path: 'items.book',
@@ -439,15 +444,14 @@ orderSchema.methods.calculateSellerPayments = async function() {
 
     // Calculate payments for each seller
     this.sellerPayments = [];
-    const defaultCommissionRate = 2.5; // Default 2.5%
     const shippingPerSeller = this.shippingCost / Object.keys(sellerGroups).length; // Distribute shipping equally
 
     for (const [sellerId, group] of Object.entries(sellerGroups)) {
       if (group.seller) { // Only for actual sellers, not admin-created books
         const itemsTotal = group.total;
-        const commissionRate = defaultCommissionRate; // Use default rate, can be edited later
-        const adminCommission = itemsTotal * (commissionRate / 100);
-        const shippingCharges = shippingPerSeller;
+        const commissionRate = globalCommissionRate; // Use global rate from settings
+        const adminCommission = Math.abs(itemsTotal * (commissionRate / 100)); // Ensure positive value
+        const shippingCharges = Math.abs(shippingPerSeller); // Ensure positive value
         const netAmount = itemsTotal - adminCommission - shippingCharges;
 
         this.sellerPayments.push({
