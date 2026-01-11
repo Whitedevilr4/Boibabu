@@ -111,16 +111,13 @@ router.post('/verify-payment', auth, async (req, res) => {
         });
       }
       
-      // Reduce stock immediately on successful payment
-      book.stock -= item.quantity;
-      await book.save();
-      console.log(`Reduced stock for ${book.title}: ${item.quantity} units (payment confirmed)`);
-      
       orderItems.push({
         book: item.bookId,
         quantity: item.quantity,
         price: book.price
       });
+      
+      // Note: Stock will be reduced when order status changes to 'confirmed' in Order model
     }
 
     const order = new Order({
