@@ -272,7 +272,7 @@ const sendWelcomeEmail = async (email, userName) => {
               </div>
               
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Start Shopping</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}" class="button">Start Shopping</a>
               </div>
               
               <p>If you have any questions or need assistance, don't hesitate to reach out to our support team.</p>
@@ -409,7 +409,7 @@ const sendOrderConfirmationEmail = async (email, userName, order) => {
               </div>
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order._id}" class="button">Track Your Order</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/orders/${order._id}" class="button">Track Your Order</a>
               </div>
               
               <p>We'll send you another email when your order ships with tracking information.</p>
@@ -512,7 +512,7 @@ const sendOrderDeliveredEmail = async (email, userName, order) => {
               </div>
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order._id}" class="button">View Order Details</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/orders/${order._id}" class="button">View Order Details</a>
               </div>
               
               <p><strong>What's Next?</strong></p>
@@ -663,7 +663,7 @@ const sendSellerOrderNotificationEmail = async (email, sellerName, order, seller
               </div>
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/seller/orders/${order._id}" class="button">Process Order in Dashboard</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/seller/orders/${order._id}" class="button">Process Order in Dashboard</a>
               </div>
               
               <p><strong>Next Steps:</strong></p>
@@ -810,7 +810,7 @@ const sendComplaintResolvedEmail = async (email, userName, complaint) => {
               ` : ''}
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/${complaint.userType === 'seller' ? 'seller' : ''}/complaints" class="button">View All Complaints</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/${complaint.userType === 'seller' ? 'seller' : ''}/complaints" class="button">View All Complaints</a>
               </div>
               
               <p><strong>What's Next?</strong></p>
@@ -1029,7 +1029,7 @@ const sendAccountUnsuspensionEmail = async (email, userName, unsuspendedBy) => {
               </div>
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login" class="button">Login to Your Account</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/login" class="button">Login to Your Account</a>
               </div>
               
               <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
@@ -1110,7 +1110,7 @@ const getEmailTemplate = (template, data) => {
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
-              <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/unsubscribe" style="color: #666;">Unsubscribe</a></p>
+              <p><a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/unsubscribe" style="color: #666;">Unsubscribe</a></p>
             </div>
           </div>
         </body>
@@ -1142,7 +1142,7 @@ const getEmailTemplate = (template, data) => {
               </div>
               
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button">Explore Books</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}" class="button">Explore Books</a>
               </div>
               
               <p>Thank you for being part of our reading community!</p>
@@ -1220,7 +1220,7 @@ const getEmailTemplate = (template, data) => {
               </div>
               
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}" class="button" style="background: #dc2626; font-size: 18px; padding: 15px 30px;">Claim Offer Now</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}" class="button" style="background: #dc2626; font-size: 18px; padding: 15px 30px;">Claim Offer Now</a>
               </div>
               
               <p>Don't let this amazing deal slip away!</p>
@@ -1229,7 +1229,7 @@ const getEmailTemplate = (template, data) => {
             </div>
             <div class="footer">
               <p>© ${new Date().getFullYear()} ${companyName}. All rights reserved.</p>
-              <p><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/unsubscribe" style="color: #666;">Unsubscribe</a></p>
+              <p><a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/unsubscribe" style="color: #666;">Unsubscribe</a></p>
             </div>
           </div>
         </body>
@@ -1473,7 +1473,7 @@ const sendRefundConfirmationEmail = async (email, userName, order, refundAmount,
               </div>
 
               <div style="text-align: center;">
-                <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/orders/${order._id}" class="button">View Order Details</a>
+                <a href="${process.env.FRONTEND_URL || 'https://boibabu.in'}/orders/${order._id}" class="button">View Order Details</a>
               </div>
               
               <p><strong>What happens next?</strong></p>
