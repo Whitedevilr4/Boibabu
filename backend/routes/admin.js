@@ -844,6 +844,76 @@ router.patch('/orders/:orderId/seller-payment/:sellerId', adminAuth, async (req,
   }
 });
 
+// Update global commission rate and recalculate all orders
+router.patch('/settings/commission', adminAuth, async (req, res) => {
+  try {
+    const { commissionRate } = req.body;
+    
+    if (typeof commissionRate !== 'number' || commissionRate < 0 || commissionRate > 100) {
+      return res.status(400).json({ message: 'Commission rate must be between 0 and 100' });
+    }
+
+    // Update website settings
+    const WebsiteSettings = require('../models/WebsiteSettings');
+    await WebsiteSettings.updateSettings({
+      'features.commissionRate': commissionRate
+    }, req.user._id);
+
+    // Find all delivered orders with seller payments
+    const orders = await Order.find({
+      orderStatus: 'delivered',
+      'sellerPayments.0': { $exists: true }
+    });
+
+    let updatedOrdersCount = 0;
+
+    // Update commission rate for all existing seller payments
+    for (const order of orders) {
+      let orderUpdated = false;
+      
+      for (const payment of order.sellerPayments) {
+        if (payment.commissionRate !== commissionRate) {
+          // Update commission rate and recalculate amounts
+          payment.commissionRate = commissionRate;
+          payment.adminCommission = Math.abs(payment.itemsTotal * (commissionRate / 100));
+          payment.netAmount = payment.itemsTotal - payment.adminCommission - payment.shippingCharges;
+          orderUpdated = true;
+        }
+      }
+      
+      if (orderUpdated) {
+        await order.save();
+        updatedOrdersCount++;
+        
+        // Notify sellers about commission rate change
+        for (const payment of order.sellerPayments) {
+          await createNotification(
+            payment.seller,
+            'general',
+            'Commission Rate Updated 💰',
+            `Global commission rate has been updated to ${commissionRate}% for all orders. Your payment for order ${order.orderNumber} is now ₹${payment.netAmount.toFixed(2)}`,
+            {
+              orderId: order._id,
+              orderNumber: order.orderNumber,
+              commissionRate,
+              netAmount: payment.netAmount
+            }
+          );
+        }
+      }
+    }
+
+    res.json({ 
+      message: 'Global commission rate updated successfully',
+      commissionRate,
+      updatedOrders: updatedOrdersCount
+    });
+  } catch (error) {
+    console.error('Error updating global commission rate:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get seller analytics
 router.get('/sellers/:sellerId/analytics', adminAuth, async (req, res) => {
   try {
