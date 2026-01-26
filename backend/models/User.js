@@ -38,6 +38,12 @@ const userSchema = new mongoose.Schema({
   },
   phone: String,
   avatar: String,
+  profilePicture: String, // For Google profile pictures
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // Allow null values but ensure uniqueness when present
+  },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
   isEmailVerified: {
