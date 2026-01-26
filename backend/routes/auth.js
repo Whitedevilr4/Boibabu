@@ -1,6 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
+const { OAuth2Client } = require('google-auth-library');
+const admin = require('firebase-admin');
 const User = require('../models/User');
 const OTP = require('../models/OTP');
 const { auth } = require('../middleware/auth');
@@ -9,10 +11,179 @@ const { authLimiter, emailVerificationLimiter, passwordResetLimiter, otpLimiter 
 
 const router = express.Router();
 
+// Initialize Firebase Admin SDK for token verification
+let firebaseAdmin = null;
+try {
+  // Initialize Firebase Admin with minimal config for token verification
+  if (!admin.apps.length) {
+    firebaseAdmin = admin.initializeApp({
+      projectId: process.env.FIREBASE_PROJECT_ID || 'boibabu'
+    });
+    console.log('✅ Firebase Admin initialized for token verification');
+  } else {
+    firebaseAdmin = admin.app();
+  }
+} catch (error) {
+  console.log('⚠️ Firebase Admin initialization failed, using Google OAuth client fallback:', error.message);
+}
+
+// Initialize Google OAuth client as fallback
+const googleClient = new OAuth2Client();
+
 // Generate JWT token
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
+
+// Firebase Google OAuth login
+router.post('/google', authLimiter, [
+  body('token').notEmpty().withMessage('Firebase ID token is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token } = req.body;
+    let payload;
+
+    try {
+      // Try Firebase Admin SDK first (most reliable for Firebase tokens)
+      if (firebaseAdmin) {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        payload = {
+          sub: decodedToken.uid,
+          email: decodedToken.email,
+          name: decodedToken.name,
+          picture: decodedToken.picture,
+          email_verified: decodedToken.email_verified
+        };
+        console.log('✅ Firebase token verified with Admin SDK');
+      } else {
+        throw new Error('Firebase Admin not available');
+      }
+    } catch (adminError) {
+      console.log('⚠️ Firebase Admin verification failed, trying Google OAuth client:', adminError.message);
+      
+      try {
+        // Fallback to Google OAuth client
+        const ticket = await googleClient.verifyIdToken({
+          idToken: token,
+          audience: [
+            'boibabu', // Firebase project ID
+            process.env.GOOGLE_CLIENT_ID
+          ].filter(Boolean)
+        });
+        payload = ticket.getPayload();
+        console.log('✅ Firebase token verified with Google OAuth client');
+      } catch (oauthError) {
+        console.error('❌ Both verification methods failed:', {
+          admin: adminError.message,
+          oauth: oauthError.message
+        });
+        return res.status(400).json({ 
+          message: 'Invalid Firebase token',
+          debug: {
+            adminError: adminError.message,
+            oauthError: oauthError.message,
+            projectId: process.env.FIREBASE_PROJECT_ID || 'boibabu'
+          }
+        });
+      }
+    }
+
+    const { sub: googleId, email, name, picture, email_verified } = payload;
+
+    if (!email_verified) {
+      return res.status(400).json({ message: 'Google email not verified' });
+    }
+
+    // Check if user exists
+    let user = await User.findOne({ 
+      $or: [
+        { email: email },
+        { googleId: googleId }
+      ]
+    });
+
+    if (user) {
+      // User exists, update Google ID if not set
+      if (!user.googleId) {
+        user.googleId = googleId;
+        user.profilePicture = picture;
+        await user.save();
+      }
+
+      // Check if user is suspended
+      if (user.isSuspended) {
+        return res.status(403).json({ 
+          message: 'Account suspended', 
+          suspended: true,
+          suspensionReason: user.suspensionReason,
+          suspendedAt: user.suspendedAt
+        });
+      }
+
+      // Generate token and login
+      const authToken = generateToken(user._id);
+
+      return res.json({
+        message: 'Login successful',
+        token: authToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: true, // Google emails are verified
+          profilePicture: user.profilePicture
+        }
+      });
+    } else {
+      // Create new user
+      const userRole = email === 'admin@gmail.com' ? 'admin' : 'user';
+      
+      user = new User({
+        name,
+        email,
+        googleId,
+        profilePicture: picture,
+        role: userRole,
+        isEmailVerified: true, // Google emails are verified
+        password: Math.random().toString(36).slice(-8) // Random password for Google users
+      });
+
+      await user.save();
+
+      // Send welcome email
+      try {
+        await sendWelcomeEmail(email, name);
+      } catch (emailError) {
+        console.log('Welcome email failed (non-critical):', emailError.message);
+      }
+
+      // Generate token and login
+      const authToken = generateToken(user._id);
+
+      return res.json({
+        message: 'Registration and login successful',
+        token: authToken,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          isEmailVerified: true,
+          profilePicture: user.profilePicture
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Firebase Google OAuth error:', error);
+    res.status(500).json({ message: 'Firebase authentication failed' });
+  }
+});
 
 // Register user
 router.post('/register', authLimiter, [
