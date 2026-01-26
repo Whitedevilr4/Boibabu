@@ -1,5 +1,5 @@
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multerStorageCloudinary = require('multer-storage-cloudinary');
 const multer = require('multer');
 
 // Configure Cloudinary
@@ -11,16 +11,16 @@ cloudinary.config({
 
 // Create storage configurations for different image types
 const createCloudinaryStorage = (folder, allowedFormats = ['jpg', 'jpeg', 'png', 'webp']) => {
-  return new CloudinaryStorage({
+  return multerStorageCloudinary({
     cloudinary: cloudinary,
     params: {
       folder: `boibabu/${folder}`,
-      allowed_formats: allowedFormats,
+      allowedFormats: allowedFormats,
       transformation: [
         { quality: 'auto:good' },
         { fetch_format: 'auto' }
       ],
-      public_id: (req, file) => {
+      publicId: (req, file) => {
         // Generate unique filename with timestamp
         const timestamp = Date.now();
         const originalName = file.originalname.split('.')[0];
