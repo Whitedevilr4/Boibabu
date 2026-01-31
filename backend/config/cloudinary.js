@@ -1,6 +1,6 @@
 const cloudinary = require('cloudinary').v2;
-const multerStorageCloudinary = require('multer-storage-cloudinary');
 const multer = require('multer');
+const { Readable } = require('stream');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,18 +9,55 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Custom Cloudinary storage engine
+class CloudinaryStorage {
+  constructor(options) {
+    this.cloudinary = options.cloudinary;
+    this.params = options.params;
+  }
+
+  _handleFile(req, file, cb) {
+    const uploadStream = this.cloudinary.uploader.upload_stream(
+      {
+        folder: this.params.folder,
+        allowed_formats: this.params.allowed_formats,
+        public_id: this.params.public_id ? this.params.public_id(req, file) : undefined,
+        transformation: this.params.transformation
+      },
+      (error, result) => {
+        if (error) {
+          return cb(error);
+        }
+        cb(null, {
+          filename: result.public_id,
+          path: result.secure_url,
+          size: result.bytes,
+          public_id: result.public_id,
+          url: result.secure_url
+        });
+      }
+    );
+
+    file.stream.pipe(uploadStream);
+  }
+
+  _removeFile(req, file, cb) {
+    this.cloudinary.uploader.destroy(file.public_id, cb);
+  }
+}
+
 // Create storage configurations for different image types
 const createCloudinaryStorage = (folder, allowedFormats = ['jpg', 'jpeg', 'png', 'webp']) => {
-  return multerStorageCloudinary({
+  return new CloudinaryStorage({
     cloudinary: cloudinary,
     params: {
       folder: `boibabu/${folder}`,
-      allowedFormats: allowedFormats,
+      allowed_formats: allowedFormats,
       transformation: [
         { quality: 'auto:good' },
         { fetch_format: 'auto' }
       ],
-      publicId: (req, file) => {
+      public_id: (req, file) => {
         // Generate unique filename with timestamp
         const timestamp = Date.now();
         const originalName = file.originalname.split('.')[0];
